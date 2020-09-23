@@ -1,6 +1,9 @@
-import os, sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import os
+import sys
 
-from classes.Amazon import Amazon
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from classes.amazon import Amazon
 
 def testInit():
 	a = Amazon("https://amazon.in/dp/B078BNQ318")
@@ -18,5 +21,5 @@ def testProductDetailsAsFile():
 
 def testKeywordSearch():
 	a = Amazon()
-	result = a.KeywordSearch("OnePlus", "https://www.amazon.in/")
-	assert result != None and result.__class__.__name__ == 'list' and len(result) > 1
+	result = a.KeywordSearch("Redmi", "www.amazon.in")
+	assert result is not None and result.__class__.__name__ == 'list' and len(result) > 1
