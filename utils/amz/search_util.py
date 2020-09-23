@@ -3,9 +3,10 @@ Search Utils
 """
 import re
 import copy
-import urllib.request as Request
+
 import urllib.parse as Parse
 from bs4 import BeautifulSoup
+import urllib.request as Request
 
 def ExtractFromCard(cardElement, domain):
 	"""
@@ -27,8 +28,10 @@ def ExtractFromCard(cardElement, domain):
 
 	''' TITLE '''
 	if cardElement.find('span', class_="a-size-medium a-color-base a-text-normal"):
-		cardObj['title'] = cardElement.find('span', class_="a-size-medium a-color-base a-text-normal").text
-		cardObj['name'] = cardElement.find('span', class_="a-size-medium a-color-base a-text-normal").text
+		cardObj['title'] = cardElement\
+			.find('span', class_="a-size-medium a-color-base a-text-normal").text
+		cardObj['name'] = cardElement\
+			.find('span', class_="a-size-medium a-color-base a-text-normal").text
 
 	''' RATING '''
 	if cardElement.find('span', attrs={"aria-label":re.compile(r"^\d\.\d out of \d stars$")}):
@@ -42,13 +45,18 @@ def ExtractFromCard(cardElement, domain):
 
 	''' PRICE '''
 	if cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "price" }) and\
-	cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "price" }).find('span', class_="a-offscreen"):
+	cardElement\
+	.find('span', attrs={ "class": "a-price", "data-a-color": "price" })\
+	.find('span', class_="a-offscreen"):
 		price = cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "price" })\
-		.find('span', class_="a-offscreen").text
-		cardObj['price'] = "{} {}".format(price[0], price[1:]) if not price[0].isdigit() else price
+			.find('span', class_="a-offscreen").text
+		cardObj['price'] = "{} {}".format( price[0], price[1:] ) if not price[0].isdigit() else price
 
-	elif cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "base" }) and\
-	cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "base" }).find('span', class_="a-offscreen"):
+	elif cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "base" })\
+	and\
+	cardElement\
+	.find('span', attrs={ "class": "a-price", "data-a-color": "base" })\
+	.find('span', class_="a-offscreen"):
 		price = cardElement.find('span', attrs={ "class": "a-price", "data-a-color": "base" })\
 		.find('span', class_="a-offscreen").text
 		cardObj['price'] = "{} {}".format(price[0], price[1:]) if not price[0].isdigit() else price
@@ -76,9 +84,9 @@ def ExtractFromCard(cardElement, domain):
 		}).get('srcset').split(',')
 
 	''' IS_PRIME '''
-	cardObj['is_prime'] = True\
-		if cardElement.find('i', attrs={ "aria-label": "Amazon Prime", "role": "img" })\
-		else False
+	cardObj['is_prime'] = bool(\
+		cardElement.find('i', attrs={ "aria-label": "Amazon Prime", "role": "img" })\
+	)
 
 	return cardObj
 
@@ -113,7 +121,7 @@ def SearchDomainForKeyword(domain, keyword, limit=None, page=1):
 	url = "https://www.{}/s?k={}&page={}".format(domain, Parse.quote(keyword), page)
 
 	opener = Request.build_opener()
-	opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+	opener.addheaders = [('User-agent', 'Mozilla/5.0 Safari/537.36')]
 
 	soup = BeautifulSoup(opener.open(url).read(), 'html.parser')
 	print("[UTIL] Fetched search results for {}".format(keyword))
@@ -125,10 +133,8 @@ def SearchDomainForKeyword(domain, keyword, limit=None, page=1):
 		if len(searchResList) < limit:
 			another = SearchDomainForKeyword(domain, keyword, limit=limit-len(searchResList), page=page+1)
 			return searchResList + another
-		else:
-			return searchResList[0:limit]
-	else:
-		return searchResList
+		return searchResList[0:limit]
+	return searchResList
 
 '''
 NOTES:
