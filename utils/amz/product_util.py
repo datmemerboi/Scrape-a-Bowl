@@ -4,21 +4,24 @@ All product based utils
 import os
 import copy
 import json as JSON
+
 from bs4 import BeautifulSoup
 
 def CreateProductObject(soup, url):
 	"""
-	Util to create product object
-	Input: soup reference, url
-	Output: Product object
+	Util to create product object from soup reference
+
+	Params: soup reference, url
+	Returns: Dict object of the product
 	"""
 	productObj = {
 		'url': url,
-		'imageURLs': [],
+		'image_urls': [],
 		'features': [],
 		'description': {},
 		'specs': [],
-		'variations': []
+		'variations': [],
+		'meta': {}
 	}
 
 	''' TITLE '''
@@ -33,7 +36,7 @@ def CreateProductObject(soup, url):
 				if child.name == "div" and 'disclaim' in child['class']:
 					productObj['description']['variant'] = child.strong.text
 				else:
-					productObj['description']['text'] = child.text.strip('').strip('\n')
+					productObj['description']['text'] = child.text.strip().strip('\n')
 
 	''' CANONICAL_URL '''
 	if soup.find('link', attrs={ "rel": "canonical" }):
@@ -41,7 +44,8 @@ def CreateProductObject(soup, url):
 
 	''' BYLINEINFO '''
 	if soup.find(id="bylineInfo"):
-		productObj['seller'] = soup.find(id="bylineInfo").text
+		productObj['seller'] = soup.find(id="bylineInfo").text.strip().strip('\n').replace('\n', ' ')
+
 
 	''' PRICE '''
 	if soup.find(id="priceblock_ourprice"):
@@ -54,7 +58,9 @@ def CreateProductObject(soup, url):
 	# soup.find(id="twister")
 
 	''' FEATURES '''
-	if soup.find(id="feature-bullets").find_all('span', class_="a-list-item"):
+	if soup.find(id="feature-bullets")\
+	and\
+	soup.find(id="feature-bullets").find_all('span', class_="a-list-item"):
 		for featureItem in soup.find(id="feature-bullets").find_all('span', class_="a-list-item"):
 			productObj['features'].append(featureItem.text.strip().strip('\n'))
 
@@ -68,7 +74,7 @@ def CreateProductObject(soup, url):
 	productObj['specs'].extend(\
 		list(\
 			map(\
-				lambda labKey, valVal: {labKey[0]:labKey[1], valVal[0]:valVal[1]},\
+				lambda labKey, valVal: { labKey[0]: labKey[1], valVal[0]: valVal[1] },\
 				list( zip(labels, keys) ), list( zip(values, vals) )\
 			)
 		)
@@ -86,39 +92,44 @@ def CreateProductObject(soup, url):
 			lambda featureObj: 'ASIN' in featureObj['label'], productObj['specs']\
 		))[0]['value']
 
-	# ''' CUSTOMER RATING '''
-	if 'out of' in soup.find(id='reviewsMedley').find_all('span', class_="a-size-medium a-color-base")[0].text:
+	''' CUSTOMER RATING '''
+	if 'out of' in\
+	soup.find(id='reviewsMedley').find('span', class_="a-size-medium a-color-base").text:
 		productObj['customer_rating'] = soup.find(id='reviewsMedley')\
-		.find_all('span', class_="a-size-medium a-color-base")[0].text.replace('\n', '').strip()
+		.find('span', class_="a-size-medium a-color-base").text.replace('\n', '').strip()
 
-	if 'customer rating' in soup.find(id='reviewsMedley')\
-	.find_all('span', class_="a-size-base a-color-secondary")[0].text:
+	if 'customer rating' in\
+	soup.find(id='reviewsMedley').find('span', class_="a-size-base a-color-secondary").text:
 		string = soup.find(id='reviewsMedley')\
-		.find_all('span', class_="a-size-base a-color-secondary")[0].text.replace(',', '')
+			.find('span', class_="a-size-base a-color-secondary").text.replace(',', '')
 
-		productObj['customer_rating_count'] = int( list( filter( lambda x: x.isdigit(), string.split() ) )[0] )
+		productObj['customer_rating_count'] = int(list(filter( lambda x: x.isdigit(), string.split() ))[0])
 
 	''' MAIN IMAGE URL '''
-	if soup.find(id='altImages').find_all('span', class_="a-button-text"):
-		productObj['mainImageURL'] = soup.find(id='altImages')\
-		.find_all('span', class_="a-button-text")[0].find_all('img')[0].get('src')
+	if soup.find(id='altImages')\
+	and\
+	soup.find(id='altImages').find_all('span', class_="a-button-text"):
+		productObj['main_image_url'] = soup.find(id='altImages')\
+			.find('span', class_="a-button-text").find('img').get('src')
 
 	''' OTHER IMAGES '''
-	if soup.find(id='altImages').find_all('span', class_="a-button-text"):
+	if soup.find(id='altImages')\
+	and\
+	soup.find(id='altImages').find_all('span', class_="a-button-text"):
 		for imgSpan in soup.find(id='altImages').find_all('span', class_="a-button-text"):
-			productObj['imageURLs'].append(imgSpan.find('img').get('src') if imgSpan.find('img') else None)
+			productObj['image_urls'].append(imgSpan.find('img').get('src') if imgSpan.find('img') else None)
 
 	''' VARIATION '''
-
 	def GetVariantTitleOfID(soup, ID, key):
 		"""
-		Extract variants
-		Input: soup ref, ID, key
-		Output: List of variants as {key: value} pairs
+		Fn to extract variants from the soup by searching for ID
+
+		Params: soup reference, ID, key
+		Returns: List of variants as { key: value } pairs
 		"""
 		i = 0; ret = []
-		while soup.find(id = ID+str(i)):
-			val = soup.find(id = ID+str(i)).get('title').replace('Click to select ', '')
+		while soup.find(id=ID + str(i)):
+			val = soup.find(id=ID + str(i)).get('title').replace('Click to select ', '')
 			ret.append("{}: {}".format(key, val))
 			i+=1
 		return ret
@@ -132,29 +143,50 @@ def CreateProductObject(soup, url):
 	if soup.find(id="variation_color_name"):
 		productObj['variations'].extend(GetVariantTitleOfID(copy.copy(soup), "color_name_", "Colour"))
 
+	''' SOURCE_CATEGORY '''
+	if soup.find(id="nav-subnav").find('a', class_="nav-a nav-b"):
+		productObj['source_category'] = soup.find(id="nav-subnav")\
+			.find('a', class_="nav-a nav-b").find('span').text.strip()
+
+	elif soup.find(id="nav-subnav").find('img', class_="nav-categ-image"):
+		sourceCatText = soup.find(id="nav-subnav")\
+			.find('img', class_="nav-categ-image").get("alt").strip()
+		if sourceCatText == "Amazon Home":
+			productObj['source_category'] = "Home Appliances"
+		elif sourceCatText == "Amazon Fashion":
+			productObj['source_category'] = "Clothes & Fashion"
+		else:
+			productObj['source_category'] = sourceCatText
+
+	''' METADATA '''
+	if soup.find_all('meta'):
+		for meta in soup.find_all('meta'):
+			if meta.get("name"):
+				productObj['meta'][meta.get("name")] = meta.get("content")
+
 	print("[UTIL] ProductObject created successfully!")
 	return productObj
 
 def ProductUtil(html, url):
 	"""
 	Util to obtain details of a Product
-	Input: HTML as string, URL
-	Output: Product object
+
+	Params: HTML webpage as a string, URL
+	Returns: Dict object of the product
 	"""
 	try:
 		soup = BeautifulSoup(html, 'html.parser')
 		return CreateProductObject(copy.copy(soup), url)
-
 	except Exception as err:
-		print("[UTIL] ProductUtil error:")
-		print(err)
+		print("[UTIL] ProductUtil error: \n{} ".format(err))
 		return False
 
 def ProductFileUtil(htmlFilePath, url):
 	"""
 	Util to obtain details of a Product as a file
-	Input: path/to/html/file, URL
-	Output: path/to/file.json
+
+	Params: /path/to/file.html, URL
+	Returns: /path/to/file.json
 	"""
 	try:
 		with open(htmlFilePath, 'r') as file:
@@ -163,18 +195,17 @@ def ProductFileUtil(htmlFilePath, url):
 
 		soup = BeautifulSoup(html, 'html.parser')
 		productObj = CreateProductObject(copy.copy(soup), url)
+		outputPath = os.path.join(os.path.dirname(__file__), '..', '..', 'output')
+		if not os.path.exists(outputPath):
+			os.makedirs(outputPath)
 
-		if not os.path.exists(os.path.join(os.path.dirname(__file__), '..', '..', 'output')):
-			os.makedirs(os.path.exists(os.path.join(os.path.dirname(__file__), '..', '..', 'output')))
-
-		with open(os.path.join(os.path.dirname(__file__), '..', '..', 'output', 'output.json'), 'w+') as file:
+		with open(os.path.join(outputPath, 'output.json'), 'w+') as file:
 			JSON.dump(productObj, file, ensure_ascii=False, indent=4)
 			print("[UTIL] Written into output/output.json")
 			file.close()
 
-		return os.path.join(os.path.dirname(__file__), '..', '..', 'output', 'output.json')
+		return os.path.join(outputPath, 'output.json')
 
 	except Exception as err:
-		print("[UTIL] ProductFileUtil error:")
-		print(err)
+		print("[UTIL] ProductFileUtil error: \n {}".format(err))
 		return False
