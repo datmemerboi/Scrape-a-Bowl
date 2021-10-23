@@ -8,6 +8,13 @@ import urllib.parse as Parse
 from bs4 import BeautifulSoup
 import urllib.request as Request
 
+'''
+TODO:
+- Number of results found
+- Next page
+- Irrelevant results based on split keywords
+'''
+
 def ExtractFromCard(cardElement, domain):
 	"""
 	Util to extract all info from a card
