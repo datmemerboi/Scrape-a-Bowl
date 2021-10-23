@@ -13,8 +13,13 @@ Run `pip install -r requirements.txt`.
 
 ### First Run
 ```
-from classes.amazon import Amazon
-
+import json
+from classes import Amazon
 instance = Amazon()
-print(instance.ProductDetails(PRODUCT_URL)
+
+# Extracting single product data
+print(instance.ProductDetails(SOME_PRODUCT_URL)
+
+# Searching for a keyword
+print(instance.KeywordSearch(SOME_KEYWORD, "amazon.in"))
 ```
